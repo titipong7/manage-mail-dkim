@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMARC Report Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            text-align: center;
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .stat-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .chart-container h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .progress-bar {
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            transition: width 0.5s;
+        }
+
+        .progress-fill.fail {
+            background: linear-gradient(90deg, #f44336, #e91e63);
+        }
+
+        .reports-table {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        .reports-table h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: #667eea;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .badge-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .domain-badge {
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-bottom: 20px;
+            transition: background 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: #5568d3;
+        }
+
+        .filter-btn {
+            background: #e0e0e0;
+            color: #333;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .filter-btn:hover {
+            background: #d0d0d0;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .filter-btn.active:hover {
+            background: #5568d3;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .summary-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #666;
+        }
+
+        .metric-value {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .metric-value.success {
+            color: #4CAF50;
+        }
+
+        .metric-value.danger {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>📧 DMARC Report Dashboard</h1>
+            <p>สรุปผลการตรวจสอบ DMARC Reports</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <button class="refresh-btn" onclick="loadData()">🔄 รีเฟรชข้อมูล</button>
+
+        <div id="loading" class="loading">
+            <p>กำลังโหลดข้อมูล...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="dashboard" style="display: none;">
+            <!-- Summary Statistics -->
+            <div class="stats-grid" id="summaryStats"></div>
+
+            <!-- Overall Summary -->
+            <div class="summary-grid" id="overallSummary"></div>
+
+            <!-- Trends Chart -->
+            <div class="chart-container">
+                <h2>📈 แนวโน้ม 7 วันย้อนหลัง</h2>
+                <canvas id="trendsChart" style="max-height: 400px;"></canvas>
+            </div>
+
+            <!-- Charts -->
+            <div class="chart-container">
+                <h2>📊 SPF, DKIM, DMARC Statistics</h2>
+                <div id="charts"></div>
+            </div>
+
+            <!-- Reports Table -->
+            <div class="reports-table">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h2 style="margin: 0;">📋 DMARC Reports</h2>
+                        <p style="color: #666; margin: 5px 0 0 0;">สรุปผลการตรวจสอบ DMARC Reports จากทุก domain</p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="filter-btn active" onclick="filterReports('all')" id="filter-all">ทั้งหมด</button>
+                        <button class="filter-btn" onclick="filterReports('fail')" id="filter-fail">ไม่ผ่าน</button>
+                        <button class="filter-btn" onclick="filterReports('pass')" id="filter-pass">ผ่าน</button>
+                    </div>
+                </div>
+                <div id="reportsTable"></div>
+            </div>
+
+            <!-- Domains Summary -->
+            <div class="reports-table" style="margin-top: 30px;">
+                <h2>🌐 Domain Statistics</h2>
+                <div id="domainsTable"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadData() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'none';
+
+            try {
+                // Load summary
+                const summaryResponse = await fetch('/api/summary');
+                const summary = await summaryResponse.json();
+
+                // Load reports
+                const reportsResponse = await fetch('/api/reports');
+                const reports = await reportsResponse.json();
+
+                // Load domains
+                const domainsResponse = await fetch('/api/domains');
+                const domains = await domainsResponse.json();
+
+                // Load trends
+                const trendsResponse = await fetch('/api/trends');
+                const trends = await trendsResponse.json();
+
+                displayDashboard(summary, reports, domains, trends);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = 'เกิดข้อผิดพลาด: ' + error.message;
+                console.error('Error loading data:', error);
+            }
+        }
+
+        let trendsChart = null;
+
+        function displayDashboard(summary, reports, domains, trends) {
+            // Display summary statistics
+            displaySummaryStats(summary);
+
+            // Display overall summary
+            displayOverallSummary(summary);
+
+            // Display trends chart
+            displayTrendsChart(trends);
+
+            // Display charts
+            displayCharts(summary);
+
+            // Display reports table
+            displayReportsTable(reports.reports || []);
+
+            // Display domains table
+            displayDomainsTable(domains);
+        }
+
+        function displayTrendsChart(trends) {
+            const trendsData = trends.trends || [];
+            
+            if (trendsData.length === 0) {
+                document.getElementById('trendsChart').parentElement.innerHTML = 
+                    '<p style="text-align: center; color: #666; padding: 40px;">ไม่มีข้อมูลแนวโน้ม</p>';
+                return;
+            }
+
+            const ctx = document.getElementById('trendsChart').getContext('2d');
+            
+            // Destroy existing chart if exists
+            if (trendsChart) {
+                trendsChart.destroy();
+            }
+
+            const labels = trendsData.map(t => {
+                const date = new Date(t.date);
+                return date.toLocaleDateString('th-TH', { month: 'short', day: 'numeric' });
+            });
+
+            trendsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'SPF Pass Rate (%)',
+                            data: trendsData.map(t => t.spf_pass_pct || 0),
+                            borderColor: 'rgb(76, 175, 80)',
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'DKIM Pass Rate (%)',
+                            data: trendsData.map(t => t.dkim_pass_pct || 0),
+                            borderColor: 'rgb(33, 150, 243)',
+                            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'DMARC Pass Rate (%)',
+                            data: trendsData.map(t => t.dmarc_pass_pct || 0),
+                            borderColor: 'rgb(156, 39, 176)',
+                            backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    const datasetLabel = context.dataset.label || '';
+                                    const value = context.parsed.y;
+                                    const index = context.dataIndex;
+                                    const trend = trendsData[index];
+                                    
+                                    let label = datasetLabel + ': ' + value.toFixed(2) + '%';
+                                    
+                                    // เพิ่มข้อมูลจำนวน records
+                                    if (trend && trend.total_records > 0) {
+                                        label += ' (' + trend.total_records.toLocaleString() + ' records)';
+                                    }
+                                    
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        function displaySummaryStats(summary) {
+            const statsHtml = `
+                <div class="stat-card">
+                    <h3>📁 ไฟล์ทั้งหมด</h3>
+                    <div class="stat-value">${summary.total_files || 0}</div>
+                    <div class="stat-label">ไฟล์ที่พบ</div>
+                </div>
+                <div class="stat-card">
+                    <h3>✅ ประมวลผลสำเร็จ</h3>
+                    <div class="stat-value">${summary.processed || 0}</div>
+                    <div class="stat-label">ไฟล์ที่ process ได้</div>
+                </div>
+                <div class="stat-card">
+                    <h3>📊 Records ทั้งหมด</h3>
+                    <div class="stat-value">${(summary.total_records || 0).toLocaleString()}</div>
+                    <div class="stat-label">จำนวน records</div>
+                </div>
+                <div class="stat-card">
+                    <h3>❌ ล้มเหลว</h3>
+                    <div class="stat-value">${summary.failed || 0}</div>
+                    <div class="stat-label">ไฟล์ที่ process ไม่ได้</div>
+                </div>
+            `;
+            document.getElementById('summaryStats').innerHTML = statsHtml;
+        }
+
+        function displayOverallSummary(summary) {
+            const totalSpf = (summary.spf_pass || 0) + (summary.spf_fail || 0);
+            const totalDkim = (summary.dkim_pass || 0) + (summary.dkim_fail || 0);
+            const totalDmarc = (summary.dmarc_pass || 0) + (summary.dmarc_fail || 0);
+            const totalDisposition = (summary.disposition_pass || 0) + (summary.disposition_fail || 0);
+
+            const summaryHtml = `
+                <div class="summary-card">
+                    <h3>SPF Authentication</h3>
+                    <div class="metric">
+                        <span class="metric-label">Pass</span>
+                        <span class="metric-value success">${(summary.spf_pass || 0).toLocaleString()} (${summary.spf_pass_pct || 0}%)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Fail</span>
+                        <span class="metric-value danger">${(summary.spf_fail || 0).toLocaleString()} (${totalSpf > 0 ? ((summary.spf_fail / totalSpf) * 100).toFixed(2) : 0}%)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total</span>
+                        <span class="metric-value">${totalSpf.toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <h3>DKIM Authentication</h3>
+                    <div class="metric">
+                        <span class="metric-label">Pass</span>
+                        <span class="metric-value success">${(summary.dkim_pass || 0).toLocaleString()} (${summary.dkim_pass_pct || 0}%)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Fail</span>
+                        <span class="metric-value danger">${(summary.dkim_fail || 0).toLocaleString()} (${totalDkim > 0 ? ((summary.dkim_fail / totalDkim) * 100).toFixed(2) : 0}%)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total</span>
+                        <span class="metric-value">${totalDkim.toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <h3>DMARC Authentication</h3>
+                    <div class="metric">
+                        <span class="metric-label">Pass</span>
+                        <span class="metric-value success">${(summary.dmarc_pass || 0).toLocaleString()} (${summary.dmarc_pass_pct || 0}%)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Fail</span>
+                        <span class="metric-value danger">${(summary.dmarc_fail || 0).toLocaleString()} (${totalDmarc > 0 ? ((summary.dmarc_fail / totalDmarc) * 100).toFixed(2) : 0}%)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total</span>
+                        <span class="metric-value">${totalDmarc.toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <h3>Disposition</h3>
+                    <div class="metric">
+                        <span class="metric-label">None (Pass)</span>
+                        <span class="metric-value success">${(summary.disposition_pass || 0).toLocaleString()} (${totalDisposition > 0 ? ((summary.disposition_pass / totalDisposition) * 100).toFixed(2) : 0}%)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Quarantine/Reject (Fail)</span>
+                        <span class="metric-value danger">${(summary.disposition_fail || 0).toLocaleString()} (${totalDisposition > 0 ? ((summary.disposition_fail / totalDisposition) * 100).toFixed(2) : 0}%)</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total</span>
+                        <span class="metric-value">${totalDisposition.toLocaleString()}</span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('overallSummary').innerHTML = summaryHtml;
+        }
+
+        function displayCharts(summary) {
+            const totalSpf = (summary.spf_pass || 0) + (summary.spf_fail || 0);
+            const totalDkim = (summary.dkim_pass || 0) + (summary.dkim_fail || 0);
+            const totalDmarc = (summary.dmarc_pass || 0) + (summary.dmarc_fail || 0);
+
+            const spfPassPct = totalSpf > 0 ? ((summary.spf_pass || 0) / totalSpf * 100) : 0;
+            const dkimPassPct = totalDkim > 0 ? ((summary.dkim_pass || 0) / totalDkim * 100) : 0;
+            const dmarcPassPct = totalDmarc > 0 ? ((summary.dmarc_pass || 0) / totalDmarc * 100) : 0;
+
+            const chartsHtml = `
+                <div style="margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 10px;">SPF Pass Rate</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${spfPassPct}%">${spfPassPct.toFixed(2)}%</div>
+                    </div>
+                    <div style="margin-top: 5px; color: #666;">
+                        Pass: ${(summary.spf_pass || 0).toLocaleString()} / Fail: ${(summary.spf_fail || 0).toLocaleString()}
+                    </div>
+                </div>
+                <div style="margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 10px;">DKIM Pass Rate</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${dkimPassPct}%">${dkimPassPct.toFixed(2)}%</div>
+                    </div>
+                    <div style="margin-top: 5px; color: #666;">
+                        Pass: ${(summary.dkim_pass || 0).toLocaleString()} / Fail: ${(summary.dkim_fail || 0).toLocaleString()}
+                    </div>
+                </div>
+                <div style="margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 10px;">DMARC Pass Rate</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill ${dmarcPassPct < 50 ? 'fail' : ''}" style="width: ${dmarcPassPct}%">${dmarcPassPct.toFixed(2)}%</div>
+                    </div>
+                    <div style="margin-top: 5px; color: #666;">
+                        Pass: ${(summary.dmarc_pass || 0).toLocaleString()} / Fail: ${(summary.dmarc_fail || 0).toLocaleString()}
+                    </div>
+                </div>
+            `;
+            document.getElementById('charts').innerHTML = chartsHtml;
+        }
+
+        let allReports = []; // เก็บ reports ทั้งหมดไว้สำหรับ filter
+        let currentFilter = 'all'; // 'all', 'pass', 'fail'
+
+        function filterReports(filterType) {
+            currentFilter = filterType;
+            
+            // อัปเดต active button
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`filter-${filterType}`).classList.add('active');
+            
+            // แสดง reports ตาม filter
+            displayReportsTable(allReports);
+        }
+
+        function displayReportsTable(reports) {
+            // เก็บ reports ทั้งหมดไว้
+            allReports = reports;
+            
+            // ตรวจสอบว่า reports เป็น array หรือไม่
+            if (!reports || !Array.isArray(reports)) {
+                console.error('reports is not an array:', reports);
+                document.getElementById('reportsTable').innerHTML = '<p style="text-align: center; color: #f44336; padding: 40px;">เกิดข้อผิดพลาดในการโหลดข้อมูล reports</p>';
+                return;
+            }
+            
+            // Filter reports ตาม currentFilter
+            let filteredReports = reports;
+            if (currentFilter === 'fail') {
+                // แสดงเฉพาะ reports ที่มี DMARC fail rate > 0 หรือ disposition fail > 0
+                filteredReports = reports.filter(report => {
+                    const summary = report.summary || {};
+                    const dmarcPassPct = (summary.dmarc_pass || 0) + (summary.dmarc_fail || 0) > 0 
+                        ? ((summary.dmarc_pass || 0) / ((summary.dmarc_pass || 0) + (summary.dmarc_fail || 0)) * 100) 
+                        : 0;
+                    return dmarcPassPct < 100 || (summary.dmarc_fail || 0) > 0 || (summary.disposition_fail || 0) > 0;
+                });
+            } else if (currentFilter === 'pass') {
+                // แสดงเฉพาะ reports ที่ผ่านทั้งหมด
+                filteredReports = reports.filter(report => {
+                    const summary = report.summary || {};
+                    const dmarcPassPct = (summary.dmarc_pass || 0) + (summary.dmarc_fail || 0) > 0 
+                        ? ((summary.dmarc_pass || 0) / ((summary.dmarc_pass || 0) + (summary.dmarc_fail || 0)) * 100) 
+                        : 0;
+                    return dmarcPassPct === 100 && (summary.dmarc_fail || 0) === 0 && (summary.disposition_fail || 0) === 0;
+                });
+            }
+            
+            if (filteredReports.length === 0) {
+                const filterText = currentFilter === 'fail' ? 'ไม่ผ่าน' : currentFilter === 'pass' ? 'ผ่าน' : '';
+                document.getElementById('reportsTable').innerHTML = `<p style="text-align: center; color: #666; padding: 40px;">ไม่พบรายงาน DMARC ที่${filterText ? ' ' + filterText : ''}</p>`;
+                return;
+            }
+
+            // เรียงลำดับตามวันที่ (ใหม่สุดก่อน)
+            filteredReports.sort((a, b) => {
+                const dateA = a.date_range_end || 0;
+                const dateB = b.date_range_end || 0;
+                return dateB - dateA;
+            });
+
+            let tableHtml = `
+                <div style="margin-bottom: 10px; color: #666; font-size: 0.9em;">
+                    แสดง ${filteredReports.length} จาก ${reports.length} reports
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Report ID</th>
+                            <th>Domain</th>
+                            <th>Date Range</th>
+                            <th>Records</th>
+                            <th>SPF</th>
+                            <th>DKIM</th>
+                            <th>DMARC</th>
+                            <th>Disposition</th>
+                            <th>Status</th>
+                            <th>XML</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            filteredReports.forEach(report => {
+                const summary = report.summary || {};
+                const spfPassPct = (summary.spf_pass || 0) + (summary.spf_fail || 0) > 0 
+                    ? ((summary.spf_pass || 0) / ((summary.spf_pass || 0) + (summary.spf_fail || 0)) * 100).toFixed(1) 
+                    : '0';
+                const dkimPassPct = (summary.dkim_pass || 0) + (summary.dkim_fail || 0) > 0 
+                    ? ((summary.dkim_pass || 0) / ((summary.dkim_pass || 0) + (summary.dkim_fail || 0)) * 100).toFixed(1) 
+                    : '0';
+                const dmarcPassPct = (summary.dmarc_pass || 0) + (summary.dmarc_fail || 0) > 0 
+                    ? ((summary.dmarc_pass || 0) / ((summary.dmarc_pass || 0) + (summary.dmarc_fail || 0)) * 100).toFixed(1) 
+                    : '0';
+
+                const beginDate = report.date_range_begin > 0 
+                    ? new Date(report.date_range_begin * 1000).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })
+                    : 'Unknown';
+                const endDate = report.date_range_end > 0 
+                    ? new Date(report.date_range_end * 1000).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })
+                    : 'Unknown';
+                
+                const reportDate = report.date || (report.date_range_end > 0 
+                    ? new Date(report.date_range_end * 1000).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })
+                    : 'Unknown');
+
+                const statusBadge = dmarcPassPct >= 80 
+                    ? '<span class="badge badge-success">Good</span>' 
+                    : dmarcPassPct >= 50 
+                    ? '<span class="badge badge-warning">Fair</span>' 
+                    : '<span class="badge badge-danger">Poor</span>';
+
+                const dispositionText = `${(summary.disposition_pass || 0).toLocaleString()} / ${(summary.disposition_fail || 0).toLocaleString()}`;
+
+                tableHtml += `
+                    <tr>
+                        <td>${reportDate}</td>
+                        <td><code style="font-size: 0.85em;">${(report.report_id || 'Unknown').substring(0, 20)}${(report.report_id || '').length > 20 ? '...' : ''}</code></td>
+                        <td><span class="domain-badge">${report.domain || 'Unknown'}</span></td>
+                        <td style="font-size: 0.9em;">${beginDate}<br>${endDate}</td>
+                        <td><strong>${(summary.total_records || 0).toLocaleString()}</strong></td>
+                        <td style="font-size: 0.9em;">${summary.spf_pass || 0} / ${summary.spf_fail || 0}<br><span style="color: ${spfPassPct >= 80 ? '#4CAF50' : spfPassPct >= 50 ? '#ff9800' : '#f44336'}">${spfPassPct}%</span></td>
+                        <td style="font-size: 0.9em;">${summary.dkim_pass || 0} / ${summary.dkim_fail || 0}<br><span style="color: ${dkimPassPct >= 80 ? '#4CAF50' : dkimPassPct >= 50 ? '#ff9800' : '#f44336'}">${dkimPassPct}%</span></td>
+                        <td style="font-size: 0.9em;">${summary.dmarc_pass || 0} / ${summary.dmarc_fail || 0}<br><span style="color: ${dmarcPassPct >= 80 ? '#4CAF50' : dmarcPassPct >= 50 ? '#ff9800' : '#f44336'}">${dmarcPassPct}%</span></td>
+                        <td style="font-size: 0.9em;">${dispositionText}</td>
+                        <td>${statusBadge}</td>
+                        <td style="text-align: center;">
+                            ${report.file ? `<a href="/api/xml/${encodeURIComponent(report.file.replace(/^dmarc-report\//, '').replace(/^\.\/dmarc-report\//, ''))}" target="_blank" style="color: #667eea; text-decoration: none; font-size: 1.2em;" title="ดู XML ไฟล์">📄</a>` : '<span style="color: #ccc;">-</span>'}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableHtml += '</tbody></table>';
+            document.getElementById('reportsTable').innerHTML = tableHtml;
+        }
+
+        function displayDomainsTable(domains) {
+            // ตรวจสอบว่า domains เป็น array หรือไม่
+            if (!domains || !Array.isArray(domains)) {
+                console.error('domains is not an array:', domains);
+                document.getElementById('domainsTable').innerHTML = '<p style="text-align: center; color: #f44336; padding: 40px;">เกิดข้อผิดพลาดในการโหลดข้อมูล domains</p>';
+                return;
+            }
+            
+            if (domains.length === 0) {
+                document.getElementById('domainsTable').innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">ไม่พบข้อมูล domain</p>';
+                return;
+            }
+
+            let tableHtml = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Domain</th>
+                            <th>Reports</th>
+                            <th>Records</th>
+                            <th>SPF Pass</th>
+                            <th>SPF Fail</th>
+                            <th>DKIM Pass</th>
+                            <th>DKIM Fail</th>
+                            <th>DMARC Pass</th>
+                            <th>DMARC Fail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            domains.forEach(domain => {
+                const totalSpf = (domain.spf_pass || 0) + (domain.spf_fail || 0);
+                const totalDkim = (domain.dkim_pass || 0) + (domain.dkim_fail || 0);
+                const totalDmarc = (domain.dmarc_pass || 0) + (domain.dmarc_fail || 0);
+
+                tableHtml += `
+                    <tr>
+                        <td><span class="domain-badge">${domain.domain || 'Unknown'}</span></td>
+                        <td>${domain.total_reports || 0}</td>
+                        <td>${(domain.total_records || 0).toLocaleString()}</td>
+                        <td class="metric-value success">${(domain.spf_pass || 0).toLocaleString()}</td>
+                        <td class="metric-value danger">${(domain.spf_fail || 0).toLocaleString()}</td>
+                        <td class="metric-value success">${(domain.dkim_pass || 0).toLocaleString()}</td>
+                        <td class="metric-value danger">${(domain.dkim_fail || 0).toLocaleString()}</td>
+                        <td class="metric-value success">${(domain.dmarc_pass || 0).toLocaleString()}</td>
+                        <td class="metric-value danger">${(domain.dmarc_fail || 0).toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+
+            tableHtml += '</tbody></table>';
+            document.getElementById('domainsTable').innerHTML = tableHtml;
+        }
+
+        // Load data on page load
+        window.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>

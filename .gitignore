@@ -1,0 +1,6 @@
+# Environment
+.env
+
+# DMARC Reports (large data files)
+dmarc-report/
+dmarc/
